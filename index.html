@@ -101,6 +101,9 @@ nav a{flex:1;text-align:center;padding:8px 0 7px;color:var(--mute);font-size:11p
 nav a svg{display:block;margin:0 auto 2px;width:24px;height:24px}
 nav a.on{color:var(--acc)}
 .note{color:var(--mute);font-size:12px;margin-top:6px}
+.lvb{font-size:13px;font-weight:700;color:var(--acc);background:rgba(56,225,196,.1);border:1px solid rgba(56,225,196,.25);border-radius:8px;padding:3px 8px;white-space:nowrap}
+a.sk{display:block}
+a.sk .chev{float:none}
 .fav{border:0;background:transparent;font-size:22px;color:var(--mute);padding:0 4px}
 .fav.on{color:var(--warn)}
 </style>
@@ -179,7 +182,7 @@ function viewDetail(n){
   <div class="card"><div class="hero">${av(m)}<div><div class="num mono">#${String(m.n).padStart(3,"0")}</div><h3>${esc(m.name)}</h3><div class="rsub" style="margin-top:6px">${chips(m)}</div></div></div>
     <div class="kv"><div><small>Memory</small><b>${m.mem??"–"}</b></div><div><small>Equip</small><b>${m.eq??"–"}</b></div><div><small>Evolves to</small><b>${to.length}</b></div><div><small>From</small><b>${fr.length}</b></div></div></div>
 
-  <div class="card"><h2>Support skill <span style="color:var(--mute)">passive</span></h2>${m.ss?`<a class="sk" style="display:block" href="#/skills?ss=${encodeURIComponent(m.ss)}"><div class="top"><span class="nm" style="color:var(--warn)">${esc(m.ss)}</span><span class="chev">›</span></div><p style="margin-top:4px">${esc(SS[m.ss]||"Effect not confirmed in available data.")}</p></a>`:'<div class="empty">None</div>'}</div>
+  <div class="card"><h2>Support skill <span style="color:var(--mute)">passive</span></h2>${m.ss?`<a class="sk" style="display:block" href="#/support/${encodeURIComponent(m.ss)}"><div class="top"><span class="nm" style="color:var(--warn)">${esc(m.ss)}</span><span class="chev">›</span></div><p style="margin-top:4px">${esc(SS[m.ss]||"Effect not confirmed in available data.")}</p></a>`:'<div class="empty">None</div>'}</div>
 
   <div class="card"><h2>Requirements to get ${esc(m.name)}</h2>${reqPills(m)}<div class="note">Needed when digivolving into ${esc(m.name)} from any Digimon below. De-digivolving has no stat requirements.</div></div>
 
@@ -202,12 +205,13 @@ function viewDetail(n){
   $("#fv").onclick=()=>{favs=favs.includes(m.n)?favs.filter(x=>x!==m.n):[...favs,m.n];store.set("dd_favs",favs);viewDetail(n)};
   window.scrollTo(0,0);
 }
-function skillHTML(nm,right){
-  const s=SK[nm];
-  if(!s)return `<div class="sk"><div class="top"><span class="nm">${esc(nm)}</span><span class="lv">${right}</span></div></div>`;
-  return `<div class="sk"><div class="top"><span class="nm">${esc(nm)}</span><span class="lv mono">${right}</span></div>
+const skUrl=n=>"#/skill/"+encodeURIComponent(n);
+function skillHTML(nm,right,link=true){
+  const s=SK[nm];const tag=link?`a href="${skUrl(nm)}"`:"div",end=link?"a":"div";
+  if(!s)return `<${tag} class="sk"><div class="top"><span class="nm">${esc(nm)}</span><span class="lv">${right}</span></div></${end}>`;
+  return `<${tag} class="sk"><div class="top"><span class="nm">${esc(nm)}${link?' <span class="chev">›</span>':""}</span><span class="lv mono">${right}</span></div>
   <div class="meta"><span class="chip">${esc(s.t)}</span><span class="chip el-${s.el}">${esc(s.el)}</span><span class="chip">SP ${s.sp}</span>${s.p?`<span class="chip">Pow ${s.p}</span>`:""}${s.inh?`<span class="chip" style="color:var(--acc)">Inheritable</span>`:""}</div>
-  <p>${esc(s.d)}</p></div>`;
+  <p>${esc(s.d)}</p></${end}>`;
 }
 
 /* ---------- Skills ---------- */
@@ -225,9 +229,9 @@ function viewSkills(params){
   const draw=()=>{
     const q=st.skq.trim().toLowerCase();
     const res=names.filter(n=>{const s=SK[n];return(!q||n.toLowerCase().includes(q)||s.d.toLowerCase().includes(q))&&(!st.skt||s.t===st.skt)&&(!st.ske||s.el===st.ske)});
-    $("#mn").innerHTML=`<div class="count">${res.length} skills · tap one to see who learns it</div><div class="card">${res.slice(0,200).map(n=>{
-      const L=(learners[n]||[]).sort((a,b)=>a[1]-b[1]);
-      return skillHTML(n,L.length?`${L.length} learner${L.length>1?"s":""}`:"via inheritance").replace('<div class="sk">',`<div class="sk" data-k="${esc(n)}">`).replace(/<\/div>$/,`<div class="skbox">${L.length?`<div class="who">${L.map(([m,lv])=>`<a href="#/d/${m.n}">${esc(m.name)}<i>Lv${lv}</i></a>`).join("")}</div>`:'<div class="empty">Not learned naturally by any Digimon.</div>'}</div></div>`)}).join("")||'<div class="empty">No skills found.</div>'}</div>${res.length>200?'<div class="note">Showing first 200 — refine your search.</div>':""}`;
+    $("#mn").innerHTML=`<div class="count">${res.length} skills · tap a skill to see who learns it and at what level</div><div class="card">${res.slice(0,200).map(n=>{
+      const L=learners[n]||[];
+      return skillHTML(n,L.length?`${L.length} Digimon`:"inherit only")}).join("")||'<div class="empty">No skills found.</div>'}</div>${res.length>200?'<div class="note">Showing first 200 — refine your search.</div>':""}`;
     document.querySelectorAll(".sk[data-k]").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("a"))return;el.classList.toggle("open")}));
   };
   draw();
@@ -248,13 +252,47 @@ function viewSupport(){
   const draw=()=>{
     const q=st.ssq.trim().toLowerCase();
     const res=names.filter(n=>!q||n.toLowerCase().includes(q)||(SS[n]||"").toLowerCase().includes(q));
-    const exact=res.length===1||res.some(n=>n.toLowerCase()===q);
     $("#mn").innerHTML=`<div class="count">${res.length} support skills · tap one to see which Digimon have it</div><div class="card">${res.map(n=>{const U=(ssUsers[n]||[]).sort((a,b)=>a.n-b.n);
-      return `<div class="sk ${exact&&(res.length===1||n.toLowerCase()===q)?"open":""}" data-k="${esc(n)}"><div class="top"><span class="nm" style="color:var(--warn)">${esc(n)}</span><span class="lv mono">${U.length} Digimon</span></div><p style="margin-top:4px">${esc(SS[n]||"Effect not confirmed in available data.")}</p><div class="skbox"><div class="who">${U.map(m=>`<a href="#/d/${m.n}">${esc(m.name)}</a>`).join("")}</div></div></div>`}).join("")||'<div class="empty">No support skills found.</div>'}</div>`;
+      return `<a class="sk" href="#/support/${encodeURIComponent(n)}"><div class="top"><span class="nm" style="color:var(--warn)">${esc(n)} <span class="chev">›</span></span><span class="lv mono">${U.length} Digimon</span></div><p style="margin-top:4px">${esc(SS[n]||"Effect not confirmed in available data.")}</p></a>`}).join("")||'<div class="empty">No support skills found.</div>'}</div>`;
     document.querySelectorAll(".sk[data-k]").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("a"))return;el.classList.toggle("open")}));
   };
   draw();
   $("#q").addEventListener("input",e=>{st.ssq=e.target.value;draw()});
+  window.scrollTo(0,0);
+}
+
+/* ---------- Skill page ---------- */
+const STO=Object.fromEntries(STAGES.map((s,i)=>[s,i]));
+function backBtn(){return `<button class="back" onclick="history.length>1?history.back():go('#/skills')">‹ Back</button>`}
+function learnerRow(m,right){return `<a class="row" href="#/d/${m.n}">${av(m)}<div class="rmain"><div class="rname">${esc(m.name)}</div><div class="rsub"><span>${esc(m.stage)}</span>·<span>${esc(m.type)}</span>·<span class="el-${m.el}">${esc(m.el)}</span></div></div>${right}<span class="chev">›</span></a>`}
+function viewSkillPage(nm){
+  setNav("skills");
+  const s=SK[nm];if(!s)return go("#/skills");
+  $("#hd").innerHTML=`<div class="hrow">${backBtn()}<h1>${esc(nm)}</h1></div>`;
+  const L=(learners[nm]||[]).slice();
+  const base=nm.replace(/\s+(I|II|III)$/,"");
+  const fam=Object.keys(SK).filter(k=>k!==nm&&base!==nm&&k.replace(/\s+(I|II|III)$/,"")===base&&/\s(I|II|III)$/.test(k)).sort();
+  $("#mn").innerHTML=`<div class="card"><h2>Skill</h2>${skillHTML(nm,"",false)}
+    <div class="kv"><div><small>SP cost</small><b>${s.sp}</b></div><div><small>Power</small><b>${s.p||"–"}</b></div><div><small>Element</small><b class="el-${s.el}">${esc(s.el)}</b></div><div><small>Inherit</small><b>${s.inh?"Yes":"No"}</b></div></div>
+    ${fam.length?`<div class="note" style="margin-top:12px">Other tiers</div><div class="who" style="margin-top:6px">${fam.map(k=>`<a href="${skUrl(k)}">${esc(k)}</a>`).join("")}</div>`:""}</div>
+  <div class="card"><h2>Digimon that learn it <span>${L.length}</span></h2>
+    ${L.length?`<div class="seg" style="margin:0 0 10px"><button data-o="lv" class="on">By level</button><button data-o="st">By stage</button><button data-o="nm">A–Z</button></div><div class="list" id="ll"></div>`:`<div class="empty">No Digimon learns this naturally.${s.inh?" It can only be obtained by inheriting it (Skill Inheritance at the Digilab).":""}</div>`}
+  </div>
+  ${s.inh&&L.length?`<div class="note" style="padding:0 4px 12px">Inheritable — any Digimon can also get it via Skill Inheritance once one of these has learned it.</div>`:""}`;
+  const draw=o=>{
+    const A=L.slice().sort(o==="lv"?(a,b)=>a[1]-b[1]||STO[a[0].stage]-STO[b[0].stage]:o==="st"?(a,b)=>STO[a[0].stage]-STO[b[0].stage]||a[1]-b[1]:(a,b)=>a[0].name.localeCompare(b[0].name));
+    $("#ll").innerHTML=A.map(([m,lv])=>learnerRow(m,`<span class="lvb mono">Lv ${lv}</span>`)).join("");
+  };
+  if(L.length){draw("lv");document.querySelectorAll("#mn .seg button").forEach(b=>b.onclick=()=>{document.querySelectorAll("#mn .seg button").forEach(x=>x.classList.toggle("on",x===b));draw(b.dataset.o)})}
+  window.scrollTo(0,0);
+}
+function viewSupportPage(nm){
+  setNav("skills");
+  if(!(nm in SS))return go("#/skills");
+  $("#hd").innerHTML=`<div class="hrow">${backBtn()}<h1>${esc(nm)}</h1></div>`;
+  const U=(ssUsers[nm]||[]).slice().sort((a,b)=>STO[a.stage]-STO[b.stage]||a.n-b.n);
+  $("#mn").innerHTML=`<div class="card"><h2>Support skill <span style="color:var(--mute)">passive</span></h2><div class="sk"><div class="top"><span class="nm" style="color:var(--warn)">${esc(nm)}</span></div><p style="margin-top:4px">${esc(SS[nm]||"Effect not confirmed in available data.")}</p></div><div class="note">Always active while this Digimon is in your battle party; effects stack across the team.</div></div>
+  <div class="card"><h2>Digimon with this skill <span>${U.length}</span></h2><div class="list">${U.map(m=>learnerRow(m,"")).join("")}</div></div>`;
   window.scrollTo(0,0);
 }
 
@@ -318,6 +356,8 @@ function route(){
   let m;
   if((m=path.match(/^\/d\/(\d+)/))){cur="d";viewDetail(+m[1])}
   else if(path==="/skills"){cur="skills";viewSkills(params)}
+  else if((m=path.match(/^\/skill\/(.+)/))){cur="skill";viewSkillPage(decodeURIComponent(m[1]))}
+  else if((m=path.match(/^\/support\/(.+)/))){cur="support";viewSupportPage(decodeURIComponent(m[1]))}
   else if(path==="/route"){cur="route";viewRoute(params)}
   else if(path==="/favs"){cur="favs";viewFavs()}
   else{cur="dex";viewDex()}
